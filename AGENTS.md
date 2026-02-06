@@ -23,16 +23,17 @@ Non-goals:
 
 ## Build, Lint, Test
 
-Status: no build/lint/test tooling is defined in this repo yet.
+Status: Vite + React + TypeScript tooling is defined.
 
-Until tooling is added, do not invent commands. If you add scripts or
-tooling, update this section immediately.
+Commands:
+- Install: `npm install`
+- Build: `npm run build`
+- Dev (Vite): `npm run dev`
+- Preview: `npm run preview`
 
-Placeholders (TBD):
-- Install: TBD (no package manager config found)
-- Build:   TBD
-- Lint:    TBD
-- Test:    TBD
+Not available yet:
+- Lint: TBD
+- Test: TBD
 
 Single-test placeholders (TBD):
 - JS/TS unit test (Jest/Vitest): TBD

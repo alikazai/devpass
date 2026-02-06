@@ -49,6 +49,30 @@ Project
 
 ---
 
+## Development
+
+```bash
+npm install
+npm run dev
+```
+
+Build the extension with:
+
+```bash
+npm run build
+```
+
+---
+
+## Load Unpacked Extension
+
+1. Run `npm run build` to generate `dist/`.
+2. Open Chrome and go to `chrome://extensions`.
+3. Enable "Developer mode".
+4. Click "Load unpacked" and select the `dist/` folder.
+
+---
+
 ## Security Model
 
 - Local-first, zero-knowledge

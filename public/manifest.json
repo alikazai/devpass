@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "DevPass",
+  "version": "0.1.0",
+  "description": "Local-first developer credential manager for non-production environments.",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "DevPass"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "permissions": ["storage", "activeTab", "scripting", "clipboardWrite"],
+  "minimum_chrome_version": "114"
+}
