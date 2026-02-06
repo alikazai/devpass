@@ -64,6 +64,14 @@ npm run build
 
 ---
 
+## Usage
+
+- Popup: quick search, copy, autofill.
+- Manager tab: unlock vault and manage projects/environments/accounts.
+- Vault locks automatically when the manager tab closes.
+
+---
+
 ## Load Unpacked Extension
 
 1. Run `npm run build` to generate `dist/`.

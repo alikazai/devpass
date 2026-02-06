@@ -8,14 +8,7 @@ import type {
   StatusResponse,
   VaultResponse,
 } from '../shared/types/messages';
-import type {
-  AccountSummary,
-  EnvironmentName,
-  ProjectSummary,
-  VaultSummary,
-} from '../shared/types/vault';
-
-const ENVIRONMENT_OPTIONS: EnvironmentName[] = ['local', 'dev', 'qa', 'staging', 'prod'];
+import type { ProjectSummary, VaultSummary } from '../shared/types/vault';
 
 const sendMessage = <T,>(message: PopupMessage): Promise<ServiceResponse<T>> =>
   new Promise((resolve) => {
@@ -81,29 +74,11 @@ const getEnvironment = (
 const App = (): JSX.Element => {
   const [status, setStatus] = useState<{ locked: boolean; hasVault: boolean } | null>(null);
   const [vault, setVault] = useState<VaultSummary | null>(null);
-  const [masterPassword, setMasterPassword] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [projectId, setProjectId] = useState<string | null>(null);
   const [environmentId, setEnvironmentId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-
-  const [newProjectName, setNewProjectName] = useState('');
-  const [newEnvironmentName, setNewEnvironmentName] = useState<EnvironmentName>('dev');
-  const [newAccountName, setNewAccountName] = useState('');
-  const [newAccountUsername, setNewAccountUsername] = useState('');
-  const [newAccountSecret, setNewAccountSecret] = useState('');
-  const [newAccountNotes, setNewAccountNotes] = useState('');
-  const [newAccountTags, setNewAccountTags] = useState('');
-  const [newAccountUrls, setNewAccountUrls] = useState('');
-
-  const [editingAccountId, setEditingAccountId] = useState<string | null>(null);
-  const [editAccountName, setEditAccountName] = useState('');
-  const [editAccountUsername, setEditAccountUsername] = useState('');
-  const [editAccountSecret, setEditAccountSecret] = useState('');
-  const [editAccountNotes, setEditAccountNotes] = useState('');
-  const [editAccountTags, setEditAccountTags] = useState('');
-  const [editAccountUrls, setEditAccountUrls] = useState('');
 
   useEffect(() => {
     sendMessage<StatusResponse['data']>({ type: 'vault:status' }).then((response) => {
@@ -112,6 +87,12 @@ const App = (): JSX.Element => {
       }
     });
   }, []);
+
+  useEffect(() => {
+    if (status && !status.locked) {
+      refreshVault();
+    }
+  }, [status]);
 
   useEffect(() => {
     if (!vault) {
@@ -137,226 +118,12 @@ const App = (): JSX.Element => {
   const selectedProject = getProject(filteredVault ?? vault, projectId);
   const selectedEnvironment = getEnvironment(selectedProject, environmentId);
 
-  const handleUnlock = async (): Promise<void> => {
-    setError('');
-    const response = await sendMessage<VaultResponse['data']>({
-      type: 'vault:unlock',
-      masterPassword,
-    });
-    if (!response.ok) {
-      setError(response.error);
-      return;
-    }
-    setVault(response.data);
-    setStatus({ locked: false, hasVault: true });
-    setMasterPassword('');
-  };
-
-  const handleLock = async (): Promise<void> => {
-    await sendMessage<EmptyResponse['data']>({ type: 'vault:lock' });
-    setVault(null);
-    setStatus((current) => (current ? { ...current, locked: true } : current));
+  const handleOpenManager = (): void => {
+    chrome.tabs.create({ url: chrome.runtime.getURL('manage.html') });
   };
 
   const refreshVault = async (): Promise<void> => {
     const response = await sendMessage<VaultResponse['data']>({ type: 'vault:get' });
-    if (response.ok) {
-      setVault(response.data);
-    }
-  };
-
-  const handleCreateProject = async (): Promise<void> => {
-    const name = newProjectName.trim();
-    if (!name) {
-      return;
-    }
-    const response = await sendMessage<VaultResponse['data']>({ type: 'project:create', name });
-    if (response.ok) {
-      setVault(response.data);
-      setNewProjectName('');
-    }
-  };
-
-  const handleUpdateProject = async (): Promise<void> => {
-    if (!projectId || !newProjectName.trim()) {
-      return;
-    }
-    const response = await sendMessage<VaultResponse['data']>({
-      type: 'project:update',
-      projectId,
-      name: newProjectName.trim(),
-    });
-    if (response.ok) {
-      setVault(response.data);
-      setNewProjectName('');
-    }
-  };
-
-  const handleDeleteProject = async (): Promise<void> => {
-    if (!projectId || !window.confirm('Delete this project and all its data?')) {
-      return;
-    }
-    const response = await sendMessage<VaultResponse['data']>({
-      type: 'project:delete',
-      projectId,
-    });
-    if (response.ok) {
-      setVault(response.data);
-    }
-  };
-
-  const handleCreateEnvironment = async (): Promise<void> => {
-    if (!projectId) {
-      return;
-    }
-    const response = await sendMessage<VaultResponse['data']>({
-      type: 'environment:create',
-      projectId,
-      name: newEnvironmentName,
-    });
-    if (response.ok) {
-      setVault(response.data);
-    }
-  };
-
-  const handleUpdateEnvironment = async (): Promise<void> => {
-    if (!projectId || !environmentId) {
-      return;
-    }
-    const response = await sendMessage<VaultResponse['data']>({
-      type: 'environment:update',
-      projectId,
-      environmentId,
-      name: newEnvironmentName,
-    });
-    if (response.ok) {
-      setVault(response.data);
-    }
-  };
-
-  const handleDeleteEnvironment = async (): Promise<void> => {
-    if (!projectId || !environmentId || !window.confirm('Delete this environment?')) {
-      return;
-    }
-    const response = await sendMessage<VaultResponse['data']>({
-      type: 'environment:delete',
-      projectId,
-      environmentId,
-    });
-    if (response.ok) {
-      setVault(response.data);
-    }
-  };
-
-  const handleCreateAccount = async (): Promise<void> => {
-    if (!projectId || !environmentId || !newAccountName.trim()) {
-      return;
-    }
-
-    const response = await sendMessage<VaultResponse['data']>({
-      type: 'account:create',
-      projectId,
-      environmentId,
-      account: {
-        name: newAccountName.trim(),
-        username: newAccountUsername.trim(),
-        secret: newAccountSecret,
-        notes: newAccountNotes.trim(),
-        tags: newAccountTags
-          .split(',')
-          .map((tag) => tag.trim())
-          .filter(Boolean),
-        loginUrls: newAccountUrls
-          .split(',')
-          .map((url) => url.trim())
-          .filter(Boolean),
-      },
-    });
-
-    if (response.ok) {
-      setVault(response.data);
-      setNewAccountName('');
-      setNewAccountUsername('');
-      setNewAccountSecret('');
-      setNewAccountNotes('');
-      setNewAccountTags('');
-      setNewAccountUrls('');
-    }
-  };
-
-  const handleEditAccount = async (account: AccountSummary): Promise<void> => {
-    if (!projectId || !environmentId) {
-      return;
-    }
-    const response = await sendMessage<SecretResponse['data']>({
-      type: 'account:getSecret',
-      projectId,
-      environmentId,
-      accountId: account.id,
-    });
-
-    if (!response.ok) {
-      setError(response.error);
-      return;
-    }
-
-    setEditingAccountId(account.id);
-    setEditAccountName(account.name);
-    setEditAccountUsername(account.username);
-    setEditAccountSecret(response.data.secret);
-    setEditAccountNotes(account.notes);
-    setEditAccountTags(account.tags.join(', '));
-    setEditAccountUrls(account.loginUrls.join(', '));
-  };
-
-  const handleUpdateAccount = async (): Promise<void> => {
-    if (!projectId || !environmentId || !editingAccountId) {
-      return;
-    }
-
-    const response = await sendMessage<VaultResponse['data']>({
-      type: 'account:update',
-      projectId,
-      environmentId,
-      accountId: editingAccountId,
-      account: {
-        name: editAccountName.trim(),
-        username: editAccountUsername.trim(),
-        secret: editAccountSecret,
-        notes: editAccountNotes.trim(),
-        tags: editAccountTags
-          .split(',')
-          .map((tag) => tag.trim())
-          .filter(Boolean),
-        loginUrls: editAccountUrls
-          .split(',')
-          .map((url) => url.trim())
-          .filter(Boolean),
-      },
-    });
-
-    if (response.ok) {
-      setVault(response.data);
-      setEditingAccountId(null);
-      setEditAccountName('');
-      setEditAccountUsername('');
-      setEditAccountSecret('');
-      setEditAccountNotes('');
-      setEditAccountTags('');
-      setEditAccountUrls('');
-    }
-  };
-
-  const handleDeleteAccount = async (accountId: string): Promise<void> => {
-    if (!projectId || !environmentId || !window.confirm('Delete this account?')) {
-      return;
-    }
-    const response = await sendMessage<VaultResponse['data']>({
-      type: 'account:delete',
-      projectId,
-      environmentId,
-      accountId,
-    });
     if (response.ok) {
       setVault(response.data);
     }
@@ -376,10 +143,12 @@ const App = (): JSX.Element => {
 
     if (response.ok) {
       await navigator.clipboard.writeText(response.data.secret);
-      // Clear any references in UI state after copy.
       setNotice('Secret copied to clipboard.');
       setTimeout(() => setNotice(''), 1500);
+      return;
     }
+
+    setError(response.error);
   };
 
   const handleCopyUsername = async (username: string): Promise<void> => {
@@ -407,22 +176,23 @@ const App = (): JSX.Element => {
     }
   };
 
-  if (!status || status.locked) {
+  if (!status) {
     return (
       <div className="container">
         <h1>DevPass</h1>
-        <p className="muted">Unlock your local vault.</p>
-        <label className="field">
-          Master password
-          <input
-            type="password"
-            value={masterPassword}
-            onChange={(event) => setMasterPassword(event.target.value)}
-          />
-        </label>
-        {error && <p className="error">{error}</p>}
-        <button type="button" onClick={handleUnlock} disabled={!masterPassword.trim()}>
-          {status?.hasVault ? 'Unlock' : 'Create vault'}
+        <p className="muted">Loading...</p>
+      </div>
+    );
+  }
+
+  if (status.locked) {
+    return (
+      <div className="container">
+        <h1>DevPass</h1>
+        <p className="muted">Vault locked. Open the manager to unlock.</p>
+        <p className="error">Locked (manager closed).</p>
+        <button type="button" onClick={handleOpenManager}>
+          Open manager
         </button>
       </div>
     );
@@ -433,18 +203,20 @@ const App = (): JSX.Element => {
       <header className="header">
         <div>
           <h1>DevPass</h1>
-          <p className="muted">Local-only credential vault.</p>
+          <p className="muted">Quick actions</p>
         </div>
-        <button type="button" onClick={handleLock}>
-          Lock
+        <button type="button" onClick={handleOpenManager}>
+          Open manager
         </button>
       </header>
+
+      <p className="notice">Unlocked (manager open).</p>
 
       {notice && <p className="notice">{notice}</p>}
       {error && <p className="error">{error}</p>}
 
       <section className="panel">
-        <h2>Projects</h2>
+        <h2>Quick actions</h2>
         <div className="row">
           <select value={projectId ?? ''} onChange={(event) => setProjectId(event.target.value)}>
             <option value="" disabled>
@@ -456,32 +228,6 @@ const App = (): JSX.Element => {
               </option>
             ))}
           </select>
-          <button type="button" onClick={refreshVault}>
-            Refresh
-          </button>
-        </div>
-        <div className="row">
-          <input
-            type="text"
-            placeholder="New project name"
-            value={newProjectName}
-            onChange={(event) => setNewProjectName(event.target.value)}
-          />
-          <button type="button" onClick={handleCreateProject}>
-            Add
-          </button>
-          <button type="button" onClick={handleUpdateProject}>
-            Rename
-          </button>
-          <button type="button" onClick={handleDeleteProject}>
-            Delete
-          </button>
-        </div>
-      </section>
-
-      <section className="panel">
-        <h2>Environments</h2>
-        <div className="row">
           <select
             value={environmentId ?? ''}
             onChange={(event) => setEnvironmentId(event.target.value)}
@@ -495,32 +241,10 @@ const App = (): JSX.Element => {
               </option>
             ))}
           </select>
-          <select
-            value={newEnvironmentName}
-            onChange={(event) => setNewEnvironmentName(event.target.value as EnvironmentName)}
-          >
-            {ENVIRONMENT_OPTIONS.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="row">
-          <button type="button" onClick={handleCreateEnvironment}>
-            Add
-          </button>
-          <button type="button" onClick={handleUpdateEnvironment}>
-            Rename
-          </button>
-          <button type="button" onClick={handleDeleteEnvironment}>
-            Delete
+          <button type="button" onClick={refreshVault}>
+            Refresh
           </button>
         </div>
-      </section>
-
-      <section className="panel">
-        <h2>Accounts</h2>
         <input
           type="search"
           placeholder="Quick search"
@@ -549,12 +273,6 @@ const App = (): JSX.Element => {
                   <button type="button" onClick={() => handleAutofill(account.id)}>
                     Autofill
                   </button>
-                  <button type="button" onClick={() => handleEditAccount(account)}>
-                    Edit
-                  </button>
-                  <button type="button" onClick={() => handleDeleteAccount(account.id)}>
-                    Delete
-                  </button>
                 </div>
               </div>
             ))}
@@ -562,88 +280,6 @@ const App = (): JSX.Element => {
         ) : (
           <p className="muted">No accounts yet.</p>
         )}
-      </section>
-
-      <section className="panel">
-        <h2>{editingAccountId ? 'Edit account' : 'Add account'}</h2>
-        <div className="grid">
-          <input
-            type="text"
-            placeholder="Account name"
-            value={editingAccountId ? editAccountName : newAccountName}
-            onChange={(event) =>
-              editingAccountId ? setEditAccountName(event.target.value) : setNewAccountName(event.target.value)
-            }
-          />
-          <input
-            type="text"
-            placeholder="Username"
-            value={editingAccountId ? editAccountUsername : newAccountUsername}
-            onChange={(event) =>
-              editingAccountId
-                ? setEditAccountUsername(event.target.value)
-                : setNewAccountUsername(event.target.value)
-            }
-          />
-          <input
-            type="password"
-            placeholder="Password / Secret"
-            value={editingAccountId ? editAccountSecret : newAccountSecret}
-            onChange={(event) =>
-              editingAccountId ? setEditAccountSecret(event.target.value) : setNewAccountSecret(event.target.value)
-            }
-          />
-          <input
-            type="text"
-            placeholder="Tags (comma separated)"
-            value={editingAccountId ? editAccountTags : newAccountTags}
-            onChange={(event) =>
-              editingAccountId ? setEditAccountTags(event.target.value) : setNewAccountTags(event.target.value)
-            }
-          />
-          <input
-            type="text"
-            placeholder="Login URLs (comma separated)"
-            value={editingAccountId ? editAccountUrls : newAccountUrls}
-            onChange={(event) =>
-              editingAccountId ? setEditAccountUrls(event.target.value) : setNewAccountUrls(event.target.value)
-            }
-          />
-          <textarea
-            placeholder="Notes"
-            value={editingAccountId ? editAccountNotes : newAccountNotes}
-            onChange={(event) =>
-              editingAccountId ? setEditAccountNotes(event.target.value) : setNewAccountNotes(event.target.value)
-            }
-          />
-        </div>
-        <div className="row">
-          {editingAccountId ? (
-            <>
-              <button type="button" onClick={handleUpdateAccount}>
-                Save
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setEditingAccountId(null);
-                  setEditAccountName('');
-                  setEditAccountUsername('');
-                  setEditAccountSecret('');
-                  setEditAccountNotes('');
-                  setEditAccountTags('');
-                  setEditAccountUrls('');
-                }}
-              >
-                Cancel
-              </button>
-            </>
-          ) : (
-            <button type="button" onClick={handleCreateAccount}>
-              Add account
-            </button>
-          )}
-        </div>
       </section>
     </div>
   );
